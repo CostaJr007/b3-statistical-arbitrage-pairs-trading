@@ -38,8 +38,8 @@ def test_dickey_fuller_ar1_and_ou():
 
 
 def test_fisher_correlation():
-    # Correlação OFICIAL é sobre log-returns: constrói preços a partir de
-    # returns correlacionados (I(0)) em vez de retas determinísticas em nível.
+    # OFFICIAL correlation is on log-returns: build prices from
+    # correlated (I(0)) returns instead of deterministic level trends.
     np.random.seed(42)
     n = 200
     rx = np.random.normal(0.0002, 0.015, n)
@@ -48,27 +48,27 @@ def test_fisher_correlation():
     y = 30.0 * np.exp(np.cumsum(ry))
     rep = FisherCorrelationEngine.analyze(x, y)
 
-    # r oficial deve refletir os returns (~0.94), não o nível espúrio (~1.0).
-    # Nota: analyze() deriva os returns de preços via log(p[1:]/p[:-1]),
-    # logo recupera rx[1:]/ry[1:] (a 1ª obs. do cumsum é absorvida no nível).
+    # Official r must reflect returns (~0.94), not the spurious level (~1.0).
+    # Note: analyze() derives returns from prices via log(p[1:]/p[:-1]),
+    # hence it recovers rx[1:]/ry[1:] (the 1st cumsum obs. is absorbed in the level).
     expected_ret_r = float(np.corrcoef(rx[1:], ry[1:])[0, 1])
     assert rep.pearson_r == pytest.approx(expected_ret_r, abs=1e-9)
     assert rep.pearson_r > 0.85
     assert rep.reject_h0_zero_correlation is True
     assert rep.ci_95[0] > 0.80
     assert rep.n_returns == n - 1
-    # Diagnóstico em nível mantido separadamente e rotulado como espúrio
+    # Level diagnostic kept separately and labelled as spurious
     assert np.isfinite(rep.r_levels_spurious)
 
-    # Caso clássico de regressão espúria: retas em nível têm r_levels ~ 1
-    # mas r de returns ~ 0 — prova que inferência em nível é inválida.
+    # Classic spurious-regression case: level trends have r_levels ~ 1
+    # but returns r ~ 0 - proof that level inference is invalid.
     xs = np.linspace(10, 50, 100)
     ys = 2.0 * xs + np.random.normal(0, 5, 100)
     spurious = FisherCorrelationEngine.analyze(xs, ys)
     assert spurious.r_levels_spurious > 0.95
     assert abs(spurious.pearson_r) < 0.30
 
-    # Preços precisam ser estritamente positivos para log-returns
+    # Prices must be strictly positive for log-returns
     with pytest.raises(ValueError):
         FisherCorrelationEngine.analyze(np.array([1.0, 0.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
                                         np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]))
@@ -82,8 +82,8 @@ def test_pairs_trading_backtest():
     assert res.total_trades > 0
     assert len(res.equity_curve) == 400
 
-    # Novo parâmetro transaction_cost: deduzido por round-trip, reduz o PnL
-    # exatamente em n_trades * custo (default 0.0 preserva resultado antigo).
+    # New transaction_cost parameter: deducted per round-trip, reduces PnL
+    # by exactly n_trades * cost (default 0.0 preserves legacy result).
     res_cost = PairsTradingBacktester.run(
         coint.residuals, entry_z=2.0, exit_z=0.0, transaction_cost=0.5
     )
@@ -92,8 +92,8 @@ def test_pairs_trading_backtest():
         res.total_pnl - 0.5 * res.total_trades, abs=1e-9
     )
 
-    # Sharpe usa ddof=1 + annualization configurável: replicar a fórmula
-    # sobre os diffs diários para travar o comportamento.
+    # Sharpe uses ddof=1 + configurable annualization: replicate the formula
+    # over daily diffs to lock the behavior.
     diffs = np.diff(res.equity_curve)
     expected_sharpe = (
         float(np.mean(diffs) / np.std(diffs, ddof=1) * np.sqrt(252))
@@ -107,7 +107,7 @@ def test_pairs_trading_backtest():
         res.sharpe_ratio * np.sqrt(126 / 252), rel=1e-9
     )
 
-    # risk_free desloca a média dos diffs antes da anualização.
+    # risk_free shifts the diffs mean before annualization.
     res_rf = PairsTradingBacktester.run(
         coint.residuals, entry_z=2.0, exit_z=0.0, risk_free=0.01
     )
@@ -116,7 +116,7 @@ def test_pairs_trading_backtest():
 
 
 def test_dickey_fuller_warns_on_small_sample():
-    # Thresholds fixos (n≈200) são lenientes com n<100: exige UserWarning.
+    # Fixed thresholds (n~200) are lenient with n<100: requires UserWarning.
     rng = np.random.default_rng(7)
     with pytest.warns(UserWarning, match="n=50 < 100"):
         DickeyFullerAR1Test.test(rng.normal(0, 1, 50), nobs=50)
