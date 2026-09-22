@@ -103,8 +103,8 @@ b3-statistical-arbitrage-pairs-trading/
 │   ├── Chart_Scaler_Module1.bas
 │   ├── Chart_Scaler_Module2.bas
 │   └── Chart_Scaler_Module3.bas
-├── excel_legacy/                  # Original Excel workbook reference
-│   └── b3_pairs_trading_cointegration_ar1_legacy.xlsm   # Sanitized legacy workbook (metadata stripped)
+├── excel_legacy/                  # Provenance notes (no binaries shipped)
+│   └── README.md
 ├── tests/
 │   ├── test_models.py             # Quantitative mathematical assertions
 │   └── test_api.py                # REST API endpoint tests
