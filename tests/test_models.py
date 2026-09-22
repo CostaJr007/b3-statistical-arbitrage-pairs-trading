@@ -38,14 +38,40 @@ def test_dickey_fuller_ar1_and_ou():
 
 
 def test_fisher_correlation():
+    # Correlação OFICIAL é sobre log-returns: constrói preços a partir de
+    # returns correlacionados (I(0)) em vez de retas determinísticas em nível.
     np.random.seed(42)
-    x = np.linspace(10, 50, 100)
-    y = 2.0 * x + np.random.normal(0, 5, 100)
+    n = 200
+    rx = np.random.normal(0.0002, 0.015, n)
+    ry = 0.9 * rx + np.random.normal(0.0, 0.005, n)
+    x = 50.0 * np.exp(np.cumsum(rx))
+    y = 30.0 * np.exp(np.cumsum(ry))
     rep = FisherCorrelationEngine.analyze(x, y)
 
-    assert rep.pearson_r > 0.90
+    # r oficial deve refletir os returns (~0.94), não o nível espúrio (~1.0).
+    # Nota: analyze() deriva os returns de preços via log(p[1:]/p[:-1]),
+    # logo recupera rx[1:]/ry[1:] (a 1ª obs. do cumsum é absorvida no nível).
+    expected_ret_r = float(np.corrcoef(rx[1:], ry[1:])[0, 1])
+    assert rep.pearson_r == pytest.approx(expected_ret_r, abs=1e-9)
+    assert rep.pearson_r > 0.85
     assert rep.reject_h0_zero_correlation is True
-    assert rep.ci_95[0] > 0.85
+    assert rep.ci_95[0] > 0.80
+    assert rep.n_returns == n - 1
+    # Diagnóstico em nível mantido separadamente e rotulado como espúrio
+    assert np.isfinite(rep.r_levels_spurious)
+
+    # Caso clássico de regressão espúria: retas em nível têm r_levels ~ 1
+    # mas r de returns ~ 0 — prova que inferência em nível é inválida.
+    xs = np.linspace(10, 50, 100)
+    ys = 2.0 * xs + np.random.normal(0, 5, 100)
+    spurious = FisherCorrelationEngine.analyze(xs, ys)
+    assert spurious.r_levels_spurious > 0.95
+    assert abs(spurious.pearson_r) < 0.30
+
+    # Preços precisam ser estritamente positivos para log-returns
+    with pytest.raises(ValueError):
+        FisherCorrelationEngine.analyze(np.array([1.0, 0.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+                                        np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]))
 
 
 def test_pairs_trading_backtest():
@@ -55,3 +81,42 @@ def test_pairs_trading_backtest():
 
     assert res.total_trades > 0
     assert len(res.equity_curve) == 400
+
+    # Novo parâmetro transaction_cost: deduzido por round-trip, reduz o PnL
+    # exatamente em n_trades * custo (default 0.0 preserva resultado antigo).
+    res_cost = PairsTradingBacktester.run(
+        coint.residuals, entry_z=2.0, exit_z=0.0, transaction_cost=0.5
+    )
+    assert res_cost.total_trades == res.total_trades
+    assert res_cost.total_pnl == pytest.approx(
+        res.total_pnl - 0.5 * res.total_trades, abs=1e-9
+    )
+
+    # Sharpe usa ddof=1 + annualization configurável: replicar a fórmula
+    # sobre os diffs diários para travar o comportamento.
+    diffs = np.diff(res.equity_curve)
+    expected_sharpe = (
+        float(np.mean(diffs) / np.std(diffs, ddof=1) * np.sqrt(252))
+        if diffs.size >= 2 and float(np.std(diffs, ddof=1)) > 1e-8 else 0.0
+    )
+    assert res.sharpe_ratio == pytest.approx(expected_sharpe, rel=1e-9)
+    res_ann = PairsTradingBacktester.run(
+        coint.residuals, entry_z=2.0, exit_z=0.0, annualization=126
+    )
+    assert res_ann.sharpe_ratio == pytest.approx(
+        res.sharpe_ratio * np.sqrt(126 / 252), rel=1e-9
+    )
+
+    # risk_free desloca a média dos diffs antes da anualização.
+    res_rf = PairsTradingBacktester.run(
+        coint.residuals, entry_z=2.0, exit_z=0.0, risk_free=0.01
+    )
+    assert res_rf.total_pnl == pytest.approx(res.total_pnl, abs=1e-9)
+    assert res_rf.sharpe_ratio != pytest.approx(res.sharpe_ratio, rel=1e-6)
+
+
+def test_dickey_fuller_warns_on_small_sample():
+    # Thresholds fixos (n≈200) são lenientes com n<100: exige UserWarning.
+    rng = np.random.default_rng(7)
+    with pytest.warns(UserWarning, match="n=50 < 100"):
+        DickeyFullerAR1Test.test(rng.normal(0, 1, 50), nobs=50)

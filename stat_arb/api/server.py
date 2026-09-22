@@ -34,6 +34,9 @@ class BacktestRequest(BaseModel):
     entry_z: float = Field(2.0, ge=0.5, le=4.0)
     exit_z: float = Field(0.0, ge=0.0, le=2.0)
     stop_z: float = Field(3.5, ge=2.0, le=6.0)
+    risk_free: float = Field(0.0)
+    transaction_cost: float = Field(0.0, ge=0.0)
+    annualization: int = Field(252, ge=1)
 
 
 @app.get("/health")
@@ -50,6 +53,8 @@ def analyze_pair(req: PairAnalysisRequest):
         coint = CointegrationEngine.fit(y, x, include_time_trend=req.include_time_trend)
         adf = DickeyFullerAR1Test.test(coint.residuals, has_trend=req.include_time_trend)
         ou = OrnsteinUhlenbeckEngine.estimate_from_residuals(coint.residuals, adf.phi)
+        # analyze() recebe PREÇOS e calcula r/p-valor/CI sobre LOG-RETURNS;
+        # r_levels é apenas diagnóstico espúrio (não usar para inferência).
         correl = FisherCorrelationEngine.analyze(x, y)
 
         return {
@@ -78,6 +83,8 @@ def analyze_pair(req: PairAnalysisRequest):
                 "p_value": correl.p_value,
                 "ci_95": correl.ci_95,
                 "ci_99": correl.ci_99,
+                "r_levels_spurious": correl.r_levels_spurious,
+                "n_returns": correl.n_returns,
             }
         }
     except Exception as e:
@@ -90,7 +97,15 @@ def backtest_pair(req: BacktestRequest):
         y = np.array(req.y_dependent_prices)
         x = np.array(req.x_independent_prices)
         coint = CointegrationEngine.fit(y, x)
-        res = PairsTradingBacktester.run(coint.residuals, entry_z=req.entry_z, exit_z=req.exit_z, stop_z=req.stop_z)
+        res = PairsTradingBacktester.run(
+            coint.residuals,
+            entry_z=req.entry_z,
+            exit_z=req.exit_z,
+            stop_z=req.stop_z,
+            risk_free=req.risk_free,
+            transaction_cost=req.transaction_cost,
+            annualization=req.annualization,
+        )
 
         return {
             "total_pnl": res.total_pnl,

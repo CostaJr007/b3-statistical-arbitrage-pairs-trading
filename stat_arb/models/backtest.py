@@ -30,7 +30,27 @@ class BacktestResult:
 
 
 class PairsTradingBacktester:
-    """Simulates statistical arbitrage trading on cointegrated residuals."""
+    """Simulates statistical arbitrage trading on cointegrated residuals.
+
+    Limitações conhecidas (documentadas de propósito):
+      - Z-score IN-SAMPLE: ``mean``/``std`` são calculados sobre TODA a
+        amostra de resíduos (look-ahead bias). Em produção, usar média/std
+        expandidos ou rolantes estimados só com dados até t-1.
+      - Sem mark-to-market intradiário: o PnL só é realizado no fechamento
+        do trade; a curva de equity é constante entre entry e exit (step
+        function), de modo que o drawdown intradiário é subestimado.
+      - Dias flat INCLUÍDOS por padrão no Sharpe (``include_flat_days=True``):
+        ``np.diff(equity)`` contém zeros nos dias sem trade, o que dilui a
+        média e o desvio. Passe ``exclude_flat_days=True`` para excluir os
+        diffs nulos do cálculo (não muda o default).
+      - Sharpe usa ``ddof=1`` (desvio amostral) e fator ``sqrt(annualization)``.
+      - ``transaction_cost`` é um custo fixo por round-trip (nas mesmas
+        unidades do spread/resíduo), deduzido do PnL de cada trade.
+        Default 0.0 preserva o comportamento histórico.
+      - ``risk_free`` é a taxa livre de risco POR PERÍODO (diária por padrão),
+        subtraída da média dos diffs diários antes da anualização.
+        Default 0.0 preserva o comportamento histórico.
+    """
 
     @classmethod
     def run(
@@ -39,7 +59,25 @@ class PairsTradingBacktester:
         entry_z: float = 2.0,
         exit_z: float = 0.0,
         stop_z: float = 3.5,
+        risk_free: float = 0.0,
+        transaction_cost: float = 0.0,
+        annualization: int = 252,
+        exclude_flat_days: bool = False,
     ) -> BacktestResult:
+        """Run the Z-score band backtest.
+
+        Args:
+            residuals: spread da cointegração.
+            entry_z: |z| de entrada. exit_z: |z| de saída. stop_z: |z| de stop.
+            risk_free: taxa livre de risco por período (default 0.0).
+            transaction_cost: custo fixo por round-trip trade (default 0.0).
+            annualization: fator de anualização do Sharpe (default 252).
+            exclude_flat_days: se True, exclui diffs diários == 0 do Sharpe.
+                Default False (mantém comportamento histórico).
+
+        Returns:
+            BacktestResult com PnL líquido de custos e Sharpe com ddof=1.
+        """
         n = len(residuals)
         if n < 20:
             raise ValueError(f"At least 20 observations required for backtesting, got {n}")
@@ -74,27 +112,27 @@ class PairsTradingBacktester:
                     entry_val = res_val
 
             elif position == 1:
-                # Long spread: profit when spread increases
+                # Long spread: profit when spread increases (net of costs)
                 if z >= -exit_z:
-                    trade_pnl = res_val - entry_val
+                    trade_pnl = (res_val - entry_val) - transaction_cost
                     current_equity += trade_pnl
                     trades.append(TradeLog(entry_idx, i, "LONG_SPREAD", trade_pnl, i - entry_idx, "MEAN_REVERSION"))
                     position = 0
                 elif z <= -stop_z:
-                    trade_pnl = res_val - entry_val
+                    trade_pnl = (res_val - entry_val) - transaction_cost
                     current_equity += trade_pnl
                     trades.append(TradeLog(entry_idx, i, "LONG_SPREAD", trade_pnl, i - entry_idx, "STOP_LOSS"))
                     position = 0
 
             elif position == -1:
-                # Short spread: profit when spread decreases
+                # Short spread: profit when spread decreases (net of costs)
                 if z <= exit_z:
-                    trade_pnl = entry_val - res_val
+                    trade_pnl = (entry_val - res_val) - transaction_cost
                     current_equity += trade_pnl
                     trades.append(TradeLog(entry_idx, i, "SHORT_SPREAD", trade_pnl, i - entry_idx, "MEAN_REVERSION"))
                     position = 0
                 elif z >= stop_z:
-                    trade_pnl = entry_val - res_val
+                    trade_pnl = (entry_val - res_val) - transaction_cost
                     current_equity += trade_pnl
                     trades.append(TradeLog(entry_idx, i, "SHORT_SPREAD", trade_pnl, i - entry_idx, "STOP_LOSS"))
                     position = 0
@@ -110,11 +148,18 @@ class PairsTradingBacktester:
         drawdown = peak - equity
         max_dd = float(np.max(drawdown)) if len(drawdown) > 0 else 0.0
 
-        # Sharpe ratio on daily equity changes
+        # Sharpe ratio on daily equity changes (ddof=1, sample std).
+        # NOTE: daily_diffs includes flat days (zeros) by default.
         daily_diffs = np.diff(equity)
-        std_diff = np.std(daily_diffs)
-        if std_diff > 1e-8:
-            sharpe = float(np.mean(daily_diffs) / std_diff * np.sqrt(252))
+        if exclude_flat_days:
+            daily_diffs = daily_diffs[daily_diffs != 0.0]
+        if daily_diffs.size >= 2:
+            std_diff = float(np.std(daily_diffs, ddof=1))
+            if std_diff > 1e-8:
+                excess_mean = float(np.mean(daily_diffs) - risk_free)
+                sharpe = float(excess_mean / std_diff * np.sqrt(float(annualization)))
+            else:
+                sharpe = 0.0
         else:
             sharpe = 0.0
 

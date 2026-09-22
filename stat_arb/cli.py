@@ -42,6 +42,8 @@ def main():
         coint = CointegrationEngine.fit(y, x, include_time_trend=args.trend)
         adf = DickeyFullerAR1Test.test(coint.residuals, has_trend=args.trend)
         ou = OrnsteinUhlenbeckEngine.estimate_from_residuals(coint.residuals, adf.phi)
+        # analyze() recebe PREÇOS e calcula r/p-valor/CI sobre LOG-RETURNS;
+        # r_levels é apenas diagnóstico espúrio (não usar para inferência).
         correl = FisherCorrelationEngine.analyze(x, y)
 
         print("=" * 65)
@@ -63,9 +65,10 @@ def main():
         print(f"Half-Life (Meia-Vida):    {ou.half_life_days:.1f} business days")
         print(f"Asymptotic Volatility:    {ou.asymptotic_volatility:.4f}")
         print("-" * 65)
-        print(f"Pearson Correlation (r):  {correl.pearson_r:.4f} (p-value: {correl.p_value:.4e})")
-        print(f"Fisher 95% CI:            [{correl.ci_95[0]:.4f}, {correl.ci_95[1]:.4f}]")
-        print(f"Fisher 99% CI:            [{correl.ci_99[0]:.4f}, {correl.ci_99[1]:.4f}]")
+        print(f"Pearson Correlation (r, log-returns):  {correl.pearson_r:.4f} (p-value: {correl.p_value:.4e})")
+        print(f"Fisher 95% CI (returns):            [{correl.ci_95[0]:.4f}, {correl.ci_95[1]:.4f}]")
+        print(f"Fisher 99% CI (returns):            [{correl.ci_99[0]:.4f}, {correl.ci_99[1]:.4f}]")
+        print(f"Levels r (SPURIOUS diagnostic):     {correl.r_levels_spurious:.4f} (n_ret={correl.n_returns})")
         print("=" * 65)
 
     elif args.command == "backtest":

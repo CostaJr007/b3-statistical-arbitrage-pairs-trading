@@ -97,7 +97,7 @@ b3-statistical-arbitrage-pairs-trading/
 │   ├── connectors/
 │   │   └── data_loader.py         # Multi-asset Excel loader & synthetic pair generator
 │   ├── api/
-│   │   └── server.py              # FastAPI microservice with Swagger OpenAPI specs
+│   │   └── server.py              # FastAPI service with Swagger OpenAPI specs
 │   └── cli.py                     # Typer + Rich interactive terminal interface
 ├── vba_legacy/                    # Reverse-engineered VBA modules from Excel
 │   ├── Chart_Scaler_Module1.bas
@@ -192,7 +192,7 @@ docker run -d -p 8000:8000 --name stat-arb b3-statistical-arbitrage
 ## Reverse Engineering Legacy VBA
 The original spreadsheet contained custom VBA chart scalers and RTD dynamic updates:
 - Extracted and archived in [`vba_legacy/`](vba_legacy/).
-- Replaced with vectorised NumPy/SciPy linear algebra and automated FastAPI microservices.
+- Replaced with vectorised NumPy/SciPy linear algebra and an automated FastAPI service.
 
 ---
 

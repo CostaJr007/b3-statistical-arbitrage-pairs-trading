@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import warnings
 from dataclasses import dataclass
 from typing import Dict, Optional
 import numpy as np
@@ -22,18 +23,66 @@ class ADFTestResult:
 
 
 class DickeyFullerAR1Test:
-    """Tests for mean-reversion and absence of unit root in cointegration residuals (Delta eps = phi * eps_{t-1})."""
+    """Tests for mean-reversion and absence of unit root in cointegration residuals (Delta eps = phi * eps_{t-1}).
+
+    Limitação conhecida dos valores críticos (MacKinnon):
+      - ``CRITICAL_VALUES_*`` são valores FIXOS inspirados em
+        MacKinnon (1991) para o teste de Engle-Granger com 2 variáveis,
+        calibrados para amostras assintóticas / n ≈ 200, SEM ajuste pelo
+        tamanho amostral T.
+      - A superfície de resposta completa de MacKinnon
+        (critical value = f(T, nº de variáveis, trend)) NÃO está
+        implementada aqui. Resultado: com T pequeno o teste é LENIENTE,
+        i.e. tem viés pró-cointegração (rejeita H0 de raiz unitária com
+        mais facilidade do que deveria), aumentando o risco de regressão
+        espúria ser classificada como cointegrada.
+      - NÃO foi adicionada dependência de ``statsmodels`` de propósito
+        (pacote deve permanecer leve/sem dependência extra).
+      - Mitigação mínima: o parâmetro opcional ``nobs`` registra o T
+        efetivo e um ``warnings.warn`` é emitido quando n < 100 para
+        sinalizar a fragilidade dos thresholds.
+    """
 
     # MacKinnon (1991) asymptotic critical values for Engle-Granger 2-variable test
     CRITICAL_VALUES_NO_TREND = {"90%": -2.60, "95%": -3.22, "99%": -3.58}
     CRITICAL_VALUES_WITH_TREND = {"90%": -3.28, "95%": -3.67, "99%": -4.32}
 
     @classmethod
-    def test(cls, residuals: np.ndarray, has_trend: bool = False) -> ADFTestResult:
+    def test(
+        cls,
+        residuals: np.ndarray,
+        has_trend: bool = False,
+        nobs: Optional[int] = None,
+    ) -> ADFTestResult:
+        """Run the AR(1) Dickey-Fuller regression on residuals.
+
+        Args:
+            residuals: spread/resíduos da cointegração (I(0) sob H1).
+            has_trend: usa tabela com tendência determinística.
+            nobs: tamanho amostral efetivo (opcional, documentacional).
+                Se omitido, usa ``len(residuals)``. Existe para futura
+                correção por T (superfície de MacKinnon) sem quebrar a API;
+                hoje NENHUM ajuste por T é aplicado — ver docstring da classe.
+
+        Warns:
+            UserWarning: se n < 100, pois os thresholds fixos (n≈200,
+                assintóticos) são lenientes nesse regime.
+        """
         eps = np.asarray(residuals, dtype=float)
         n = len(eps)
         if n < 10:
             raise ValueError(f"Need at least 10 residual observations, got {n}")
+        if nobs is None:
+            nobs = n
+        if n < 100:
+            warnings.warn(
+                f"Dickey-Fuller AR(1): n={n} < 100. Fixed MacKinnon thresholds "
+                f"(calibrated for n≈200/asymptotic, no sample-size adjustment) "
+                f"are lenient in small samples and biased toward finding "
+                f"cointegration. Interpret with caution.",
+                UserWarning,
+                stacklevel=2,
+            )
 
         # Delta eps_t = eps_t - eps_{t-1}
         delta_eps = eps[1:] - eps[:-1]
