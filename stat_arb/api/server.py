@@ -1,4 +1,4 @@
-"""FastAPI Microservice for B3 Statistical Arbitrage & Pairs Trading."""
+"""FastAPI Service for B3 Statistical Arbitrage & Pairs Trading."""
 
 from __future__ import annotations
 
@@ -53,8 +53,8 @@ def analyze_pair(req: PairAnalysisRequest):
         coint = CointegrationEngine.fit(y, x, include_time_trend=req.include_time_trend)
         adf = DickeyFullerAR1Test.test(coint.residuals, has_trend=req.include_time_trend)
         ou = OrnsteinUhlenbeckEngine.estimate_from_residuals(coint.residuals, adf.phi)
-        # analyze() recebe PREÇOS e calcula r/p-valor/CI sobre LOG-RETURNS;
-        # r_levels é apenas diagnóstico espúrio (não usar para inferência).
+        # analyze() takes PRICES and computes r/p-value/CI on LOG-RETURNS;
+        # r_levels is only a spurious diagnostic (do not use for inference).
         correl = FisherCorrelationEngine.analyze(x, y)
 
         return {

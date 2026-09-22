@@ -17,43 +17,43 @@ class CorrelationReport:
     reject_h0_zero_correlation: bool
     ci_95: Tuple[float, float]
     ci_99: Tuple[float, float]
-    # Diagnóstico espúrio: correlação em NÍVEL de preços I(1). NÃO usar
-    # para inferência — mantido apenas para evidenciar o viés de
-    # regressão espúria (Granger & Newbold, 1974).
+    # Spurious diagnostic: correlation on I(1) price LEVELS. DO NOT use
+    # for inference — kept only to evidence the
+    # spurious regression bias (Granger & Newbold, 1974).
     r_levels_spurious: float = float("nan")
     n_returns: int = 0
 
 
 class FisherCorrelationEngine:
-    """Pearson correlation + Fisher CI + t-test sobre LOG-RETURNS.
+    """Pearson correlation + Fisher CI + t-test on LOG-RETURNS.
 
-    Por que log-returns e não preços em nível?
-    Preços de ações são tipicamente I(1) (passeio aleatório com drift);
-    a correlação de Pearson entre duas séries I(1) em nível é espúria:
-    tende a ~1 sempre que ambas têm tendência, mesmo sem relação
-    econômica (Granger & Newbold, 1974). A planilha legada usa
-    log-returns, estacionários I(0), para a correlação oficial.
+    Why log-returns and not level prices?
+    Stock prices are typically I(1) (random walk with drift);
+    Pearson correlation between two I(1) series in levels is spurious:
+    it tends to ~1 whenever both trend, even without any economic
+    relationship (Granger & Newbold, 1974). The legacy spreadsheet uses
+    log-returns, stationary I(0), for the official correlation.
 
-    Contrato:
-      - Entrada ``x`` / ``y``: SÉRIES DE PREÇOS (níveis, valores > 0).
-      - Internamente converte para log-returns
-        ``r_t = log(p[t] / p[t-1])`` e toda a inferência
+    Contract:
+      - Input ``x`` / ``y``: PRICE SERIES (levels, values > 0).
+      - Internally converts to log-returns
+        ``r_t = log(p[t] / p[t-1])`` and all inference
         (``pearson_r``, ``p_value``, ``ci_95``/``ci_99``, ``t_statistic``)
-        é calculada SOBRE OS RETURNS, nunca sobre níveis.
-      - O campo ``r_levels_spurious`` retorna a correlação em nível
-        apenas como diagnóstico do viés espúrio. Não usar para decisão.
+        is computed ON RETURNS, never on levels.
+      - The ``r_levels_spurious`` field returns the level correlation
+        only as a diagnostic of spurious bias. Do not use for decisions.
     """
 
     @classmethod
     def analyze(cls, x: np.ndarray, y: np.ndarray) -> CorrelationReport:
-        """Calcula correlação oficial sobre log-returns a partir de preços.
+        """Computes official correlation on log-returns from prices.
 
         Args:
-            x: série de preços do ativo X (níveis, todos > 0).
-            y: série de preços do ativo Y (níveis, todos > 0).
+            x: price series of asset X (levels, all > 0).
+            y: price series of asset Y (levels, all > 0).
 
         Returns:
-            CorrelationReport com ``pearson_r``/CIs/p-valor dos RETURNS.
+            CorrelationReport with ``pearson_r``/CIs/p-value of RETURNS.
         """
         px = np.asarray(x, dtype=float).ravel()
         py = np.asarray(y, dtype=float).ravel()
@@ -61,7 +61,7 @@ class FisherCorrelationEngine:
             raise ValueError(f"Length mismatch: x has {px.size} points, y has {py.size} points")
         n_prices = px.size
         if n_prices < 6:
-            # Precisamos de >= 5 log-returns => >= 6 preços.
+            # We need >= 5 log-returns => >= 6 prices.
             raise ValueError(
                 f"At least 6 price observations required (5 log-returns) "
                 f"for Fisher correlation, got {n_prices}"
@@ -71,7 +71,7 @@ class FisherCorrelationEngine:
         if np.any(px <= 0) or np.any(py <= 0):
             raise ValueError("Price series must be strictly positive for log-returns.")
 
-        # Diagnóstico espúrio (nível) — apenas informativo.
+        # Spurious diagnostic (levels) — informational only.
         with np.errstate(invalid="ignore"):
             r_levels = float(np.corrcoef(px, py)[0, 1])
 

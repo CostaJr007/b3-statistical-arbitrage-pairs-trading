@@ -25,22 +25,22 @@ class ADFTestResult:
 class DickeyFullerAR1Test:
     """Tests for mean-reversion and absence of unit root in cointegration residuals (Delta eps = phi * eps_{t-1}).
 
-    Limitação conhecida dos valores críticos (MacKinnon):
-      - ``CRITICAL_VALUES_*`` são valores FIXOS inspirados em
-        MacKinnon (1991) para o teste de Engle-Granger com 2 variáveis,
-        calibrados para amostras assintóticas / n ≈ 200, SEM ajuste pelo
-        tamanho amostral T.
-      - A superfície de resposta completa de MacKinnon
-        (critical value = f(T, nº de variáveis, trend)) NÃO está
-        implementada aqui. Resultado: com T pequeno o teste é LENIENTE,
-        i.e. tem viés pró-cointegração (rejeita H0 de raiz unitária com
-        mais facilidade do que deveria), aumentando o risco de regressão
-        espúria ser classificada como cointegrada.
-      - NÃO foi adicionada dependência de ``statsmodels`` de propósito
-        (pacote deve permanecer leve/sem dependência extra).
-      - Mitigação mínima: o parâmetro opcional ``nobs`` registra o T
-        efetivo e um ``warnings.warn`` é emitido quando n < 100 para
-        sinalizar a fragilidade dos thresholds.
+    Known limitation of critical values (MacKinnon):
+      - ``CRITICAL_VALUES_*`` are FIXED values inspired by
+        MacKinnon (1991) for the Engle-Granger test with 2 variables,
+        calibrated for asymptotic samples / n ≈ 200, WITHOUT adjustment for
+        sample size T.
+      - The full MacKinnon response surface
+        (critical value = f(T, number of variables, trend)) is NOT
+        implemented here. Result: with small T the test is LENIENT,
+        i.e. it has a pro-cointegration bias (rejects the unit-root H0 more
+        easily than it should), increasing the risk of a spurious
+        regression being classified as cointegrated.
+      - No ``statsmodels`` dependency was added on purpose
+        (package must remain lightweight/without extra dependency).
+      - Minimal mitigation: the optional ``nobs`` parameter records the effective T
+        and a ``warnings.warn`` is emitted when n < 100 to
+        flag the fragility of the thresholds.
     """
 
     # MacKinnon (1991) asymptotic critical values for Engle-Granger 2-variable test
@@ -57,16 +57,16 @@ class DickeyFullerAR1Test:
         """Run the AR(1) Dickey-Fuller regression on residuals.
 
         Args:
-            residuals: spread/resíduos da cointegração (I(0) sob H1).
-            has_trend: usa tabela com tendência determinística.
-            nobs: tamanho amostral efetivo (opcional, documentacional).
-                Se omitido, usa ``len(residuals)``. Existe para futura
-                correção por T (superfície de MacKinnon) sem quebrar a API;
-                hoje NENHUM ajuste por T é aplicado — ver docstring da classe.
+            residuals: cointegration spread/residuals (I(0) under H1).
+            has_trend: uses table with deterministic trend.
+            nobs: effective sample size (optional, documental).
+                If omitted, uses ``len(residuals)``. Exists for future
+                correction by T (MacKinnon surface) without breaking the API;
+                today NO adjustment by T is applied — see class docstring.
 
         Warns:
-            UserWarning: se n < 100, pois os thresholds fixos (n≈200,
-                assintóticos) são lenientes nesse regime.
+            UserWarning: if n < 100, since fixed thresholds (n≈200,
+                asymptotic) are lenient in this regime.
         """
         eps = np.asarray(residuals, dtype=float)
         n = len(eps)

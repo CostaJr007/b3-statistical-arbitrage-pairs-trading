@@ -4,9 +4,9 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests: Pytest](https://img.shields.io/badge/Tests-7%20Passed-brightgreen.svg)](https://pytest.org)
+[![Tests: Pytest](https://img.shields.io/badge/Tests-8%20Passed-brightgreen.svg)](https://pytest.org)
 
-Research-grade Quantitative Pairs Trading and Statistical Arbitrage engine tailored for Brazilian equities traded on B3. Reverse-engineered and formalized from legacy trading workbooks (`excel_legacy/b3_pairs_trading_cointegration_ar1_legacy.xlsm`), modernizing Excel formulas into a modular Python engine with Docker, interactive CLI, and pytest suites.
+Research-grade Quantitative Pairs Trading and Statistical Arbitrage engine tailored for Brazilian equities traded on B3. Reverse-engineered and formalized from legacy trading workbooks (see `excel_legacy/README.md` for provenance), modernizing Excel formulas into a modular Python engine with Docker, interactive CLI, and pytest suites.
 
 ---
 
@@ -31,13 +31,13 @@ The $t$-statistic for the null hypothesis $H_0: \rho = 0$ (unit root / non-stati
 
 $$t_{\text{stat}} = \frac{\hat{\rho}}{\text{SE}(\hat{\rho})}$$
 
-The calculated $t$-statistic is evaluated against **MacKinnon (1991)** finite-sample critical value surfaces:
+The calculated $t$-statistic is evaluated against **fixed MacKinnon-inspired critical values** for the Engle-Granger 2-variable test (calibrated for asymptotic samples, $n \approx 200$, with **no sample-size adjustment** — the full MacKinnon response surface is not implemented, so the test is lenient for small $T$ and a warning is issued when $n < 100$):
 
-| Confidence Level | No Trend ($T \approx 100-250$) | With Linear Trend ($T \approx 100-250$) |
+| Confidence Level | No Trend | With Linear Trend |
 | :--- | :---: | :---: |
-| **90% Confidence** ($\alpha = 0.10$) | $-2.57$ | $-3.13$ |
-| **95% Confidence** ($\alpha = 0.05$) | $-2.88$ | $-3.43$ |
-| **99% Confidence** ($\alpha = 0.01$) | $-3.46$ | $-3.99$ |
+| **90% Confidence** ($\alpha = 0.10$) | $-2.60$ | $-3.28$ |
+| **95% Confidence** ($\alpha = 0.05$) | $-3.22$ | $-3.67$ |
+| **99% Confidence** ($\alpha = 0.01$) | $-3.58$ | $-4.32$ |
 
 ### 3. Ornstein-Uhlenbeck (OU) Mean-Reversion Dynamics
 The stationary spread is modeled as a continuous-time Ornstein-Uhlenbeck process:
@@ -134,24 +134,31 @@ python -m pytest tests/ -v
 
 Expected output:
 ```
-tests/test_api.py::test_health_endpoint PASSED                           [ 14%]
-tests/test_api.py::test_analyze_pair_endpoint PASSED                     [ 28%]
-tests/test_api.py::test_backtest_endpoint PASSED                         [ 42%]
-tests/test_models.py::test_cointegration_ols PASSED                      [ 57%]
-tests/test_models.py::test_dickey_fuller_ar1 PASSED                      [ 71%]
-tests/test_models.py::test_ornstein_uhlenbeck_halflife PASSED            [ 85%]
-tests/test_models.py::test_fisher_correlation PASSED                     [100%]
-======= 7 passed in 1.68s =======
+tests/test_api.py::test_health PASSED                                    [ 12%]
+tests/test_api.py::test_analyze_pair_endpoint PASSED                     [ 25%]
+tests/test_api.py::test_backtest_endpoint PASSED                         [ 37%]
+tests/test_models.py::test_cointegration_engine PASSED                   [ 50%]
+tests/test_models.py::test_dickey_fuller_ar1_and_ou PASSED               [ 62%]
+tests/test_models.py::test_fisher_correlation PASSED                     [ 75%]
+tests/test_models.py::test_pairs_trading_backtest PASSED                 [ 87%]
+tests/test_models.py::test_dickey_fuller_warns_on_small_sample PASSED    [100%]
+======= 8 passed in 1.68s =======
 ```
 
 ### 3. Interactive CLI Commands
 
 ```bash
-# Analyze a synthetic mean-reverting pair (PETR4 vs VALE3)
-python -m stat_arb.cli analyze --ticker-y PETR4 --ticker-x VALE3 --periods 252
+# Analyze a synthetic mean-reverting pair (250 OU-based observations)
+stat-arb analyze --samples 252
+
+# Same, with deterministic time trend in the cointegration regression
+stat-arb analyze --samples 252 --trend
 
 # Run full Z-score backtest with PnL & Sharpe metrics
-python -m stat_arb.cli backtest --ticker-y PETR4 --ticker-x VALE3 --entry-z 2.0 --exit-z 0.5
+stat-arb backtest --entry-z 2.0 --stop-z 3.5
+
+# Launch the REST server (default http://127.0.0.1:8003)
+stat-arb serve --port 8003
 ```
 
 ### 4. Launch FastAPI REST Server
@@ -166,12 +173,12 @@ Interactive documentation is available at:
 
 #### Example REST API Request:
 ```bash
-curl -X POST "http://localhost:8000/analyze" \
+curl -X POST "http://localhost:8000/api/v1/analyze-pair" \
      -H "Content-Type: application/json" \
      -d '{
-       "series_y": [28.5, 28.2, 28.9, 29.1, 28.7, 28.4],
-       "series_x": [65.2, 64.8, 66.0, 66.5, 65.9, 65.1],
-       "include_trend": false
+       "y_dependent_prices": [28.5, 28.2, 28.9, 29.1, 28.7, 28.4, 28.8, 29.0, 28.6, 28.3, 28.9, 29.2, 28.8, 28.5, 29.0, 29.1, 28.7, 28.4, 28.8, 29.0],
+       "x_independent_prices": [65.2, 64.8, 66.0, 66.5, 65.9, 65.1, 65.8, 66.2, 65.5, 65.0, 65.9, 66.4, 65.7, 65.2, 66.0, 66.3, 65.6, 65.1, 65.8, 66.1],
+       "include_time_trend": false
      }'
 ```
 

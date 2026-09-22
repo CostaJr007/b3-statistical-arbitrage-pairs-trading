@@ -42,8 +42,8 @@ def main():
         coint = CointegrationEngine.fit(y, x, include_time_trend=args.trend)
         adf = DickeyFullerAR1Test.test(coint.residuals, has_trend=args.trend)
         ou = OrnsteinUhlenbeckEngine.estimate_from_residuals(coint.residuals, adf.phi)
-        # analyze() recebe PREÇOS e calcula r/p-valor/CI sobre LOG-RETURNS;
-        # r_levels é apenas diagnóstico espúrio (não usar para inferência).
+        # analyze() takes PRICES and computes r/p-value/CI on LOG-RETURNS;
+        # r_levels is only a spurious diagnostic (do not use for inference).
         correl = FisherCorrelationEngine.analyze(x, y)
 
         print("=" * 65)
@@ -62,7 +62,7 @@ def main():
         print(f"Conclusion:               {adf.conclusion}")
         print("-" * 65)
         print(f"OU Mean-Reversion Speed:  {ou.theta_speed:.4f} / day")
-        print(f"Half-Life (Meia-Vida):    {ou.half_life_days:.1f} business days")
+        print(f"Half-Life:                {ou.half_life_days:.1f} business days")
         print(f"Asymptotic Volatility:    {ou.asymptotic_volatility:.4f}")
         print("-" * 65)
         print(f"Pearson Correlation (r, log-returns):  {correl.pearson_r:.4f} (p-value: {correl.p_value:.4e})")

@@ -32,24 +32,24 @@ class BacktestResult:
 class PairsTradingBacktester:
     """Simulates statistical arbitrage trading on cointegrated residuals.
 
-    Limitações conhecidas (documentadas de propósito):
-      - Z-score IN-SAMPLE: ``mean``/``std`` são calculados sobre TODA a
-        amostra de resíduos (look-ahead bias). Em produção, usar média/std
-        expandidos ou rolantes estimados só com dados até t-1.
-      - Sem mark-to-market intradiário: o PnL só é realizado no fechamento
-        do trade; a curva de equity é constante entre entry e exit (step
-        function), de modo que o drawdown intradiário é subestimado.
-      - Dias flat INCLUÍDOS por padrão no Sharpe (``include_flat_days=True``):
-        ``np.diff(equity)`` contém zeros nos dias sem trade, o que dilui a
-        média e o desvio. Passe ``exclude_flat_days=True`` para excluir os
-        diffs nulos do cálculo (não muda o default).
-      - Sharpe usa ``ddof=1`` (desvio amostral) e fator ``sqrt(annualization)``.
-      - ``transaction_cost`` é um custo fixo por round-trip (nas mesmas
-        unidades do spread/resíduo), deduzido do PnL de cada trade.
-        Default 0.0 preserva o comportamento histórico.
-      - ``risk_free`` é a taxa livre de risco POR PERÍODO (diária por padrão),
-        subtraída da média dos diffs diários antes da anualização.
-        Default 0.0 preserva o comportamento histórico.
+    Known limitations (documented on purpose):
+      - IN-SAMPLE Z-score: ``mean``/``std`` are computed over the ENTIRE
+        residual sample (look-ahead bias). In production, use expanding or
+        rolling mean/std estimated only with data up to t-1.
+      - No intraday mark-to-market: PnL is only realized at trade close;
+        the equity curve is flat between entry and exit (step
+        function), so intraday drawdown is underestimated.
+      - Flat days INCLUDED by default in Sharpe (``include_flat_days=True``):
+        ``np.diff(equity)`` contains zeros on days without trades, which dilutes
+        the mean and the deviation. Pass ``exclude_flat_days=True`` to exclude
+        null diffs from the computation (does not change the default).
+      - Sharpe uses ``ddof=1`` (sample deviation) and ``sqrt(annualization)`` factor.
+      - ``transaction_cost`` is a fixed cost per round-trip (in the same
+        spread/residual units), deducted from each trade's PnL.
+        Default 0.0 preserves historical behavior.
+      - ``risk_free`` is the PER-PERIOD risk-free rate (daily by default),
+        subtracted from the mean of daily diffs before annualization.
+        Default 0.0 preserves historical behavior.
     """
 
     @classmethod
@@ -67,16 +67,16 @@ class PairsTradingBacktester:
         """Run the Z-score band backtest.
 
         Args:
-            residuals: spread da cointegração.
-            entry_z: |z| de entrada. exit_z: |z| de saída. stop_z: |z| de stop.
-            risk_free: taxa livre de risco por período (default 0.0).
-            transaction_cost: custo fixo por round-trip trade (default 0.0).
-            annualization: fator de anualização do Sharpe (default 252).
-            exclude_flat_days: se True, exclui diffs diários == 0 do Sharpe.
-                Default False (mantém comportamento histórico).
+            residuals: cointegration spread.
+            entry_z: entry |z|. exit_z: exit |z|. stop_z: stop |z|.
+            risk_free: per-period risk-free rate (default 0.0).
+            transaction_cost: fixed cost per round-trip trade (default 0.0).
+            annualization: Sharpe annualization factor (default 252).
+            exclude_flat_days: if True, excludes daily diffs == 0 from Sharpe.
+                Default False (keeps historical behavior).
 
         Returns:
-            BacktestResult com PnL líquido de custos e Sharpe com ddof=1.
+            BacktestResult with cost-net PnL and Sharpe with ddof=1.
         """
         n = len(residuals)
         if n < 20:
