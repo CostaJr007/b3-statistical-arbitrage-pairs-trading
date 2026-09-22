@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "b3-statistical-arbitrage-pairs-trading"
+version = "1.0.0"
+description = "Production-grade B3 pairs trading & statistical arbitrage engine: Cointegration (OLS/ADF), Dickey-Fuller AR(1), Ornstein-Uhlenbeck mean-reversion, Fisher Z-transform, and Z-score backtesting."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "scipy>=1.10.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.28.0",
+    "pydantic>=2.6.0",
+    "openpyxl>=3.1.2",
+    "typer>=0.9.0",
+    "rich>=13.7.0"
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
