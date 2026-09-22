@@ -14,7 +14,7 @@ class B3PairsDataLoader:
 
     @staticmethod
     def load_from_excel(filepath: str, max_rows: Optional[int] = None) -> pd.DataFrame:
-        """Extract prices from 'Banco de Dados' sheet of L_S_aluno_testeAR1.xlsm."""
+        """Extract prices from 'Banco de Dados' sheet of b3_pairs_trading_cointegration_ar1_legacy.xlsm."""
         if not os.path.exists(filepath):
             raise FileNotFoundError(f"Spreadsheet not found: {filepath}")
 

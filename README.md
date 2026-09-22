@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tests: Pytest](https://img.shields.io/badge/Tests-7%20Passed-brightgreen.svg)](https://pytest.org)
 
-Production-grade Quantitative Pairs Trading and Statistical Arbitrage engine tailored for Brazilian equities traded on B3. Reverse-engineered, formalized, and productionalized from institutional financial spreadsheets (`L_S_aluno_testeAR1.xlsm`), modernizing legacy Excel VBA automation into a high-performance, asynchronous Python architecture with Docker microservices, interactive CLI, and comprehensive test suites.
+Research-grade Quantitative Pairs Trading and Statistical Arbitrage engine tailored for Brazilian equities traded on B3. Reverse-engineered and formalized from legacy trading workbooks (`excel_legacy/b3_pairs_trading_cointegration_ar1_legacy.xlsm`), modernizing Excel formulas into a modular Python engine with Docker, interactive CLI, and pytest suites.
 
 ---
 
@@ -104,7 +104,7 @@ b3-statistical-arbitrage-pairs-trading/
 │   ├── Chart_Scaler_Module2.bas
 │   └── Chart_Scaler_Module3.bas
 ├── excel_legacy/                  # Original Excel workbook reference
-│   └── L_S_aluno_testeAR1.xlsm
+│   └── b3_pairs_trading_cointegration_ar1_legacy.xlsm   # Sanitized legacy workbook (metadata stripped)
 ├── tests/
 │   ├── test_models.py             # Quantitative mathematical assertions
 │   └── test_api.py                # REST API endpoint tests
